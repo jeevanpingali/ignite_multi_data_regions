@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+       http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<!--
+    Configuration example with Kubernetes IP finder and Ignite persistence enabled.
+    WAL files and database files are stored in separate disk drives.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean class="org.apache.ignite.configuration.IgniteConfiguration">
+        <property name="metricsLogFrequency" value="0"/>
+        <property name="metricsUpdateFrequency" value="60000"/>
+        <property name="clientFailureDetectionTimeout" value="60000"/>
+        <property name="metricsHistorySize" value="100"/>
+        <!--        <property name="workDirectory" value="/persistence/work"/>-->
+        <!-- Pool Configuration -->
+        <property name="systemThreadPoolSize" value="32"/>
+        <property name="queryThreadPoolSize" value="32"/>
+        <property name="dataStreamerThreadPoolSize" value="32"/>
+        <property name="stripedPoolSize" value="32"/>
+        <property name="publicThreadPoolSize" value="32"/>
+        <property name="serviceThreadPoolSize" value="32"/>
+        <property name="utilityCachePoolSize" value="32"/>
+        <property name="asyncCallbackPoolSize" value="32"/>
+        <property name="managementThreadPoolSize" value="32"/>
+        <property name="mvccVacuumThreadCount" value="16"/>
+        <property name="systemWorkerBlockedTimeout" value="#{20 * 60 * 1000}"/>
+
+        <property name="failureHandler">
+            <bean class="org.apache.ignite.failure.StopNodeFailureHandler">
+                <property name="ignoredFailureTypes">
+                    <list>
+                        <value>SYSTEM_WORKER_BLOCKED</value>
+                        <value>SYSTEM_CRITICAL_OPERATION_TIMEOUT</value>
+                    </list>
+                </property>
+            </bean>
+        </property>
+
+        <property name="communicationSpi">
+            <bean class="org.apache.ignite.spi.communication.tcp.TcpCommunicationSpi">
+                <property name="connectTimeout" value="10000"/>
+            </bean>
+        </property>
+
+        <property name="clientConnectorConfiguration">
+            <bean class="org.apache.ignite.configuration.ClientConnectorConfiguration">
+                <property name="handshakeTimeout" value="20000"/>
+                <property name="threadPoolSize" value="32"/>
+                <property name="maxOpenCursorsPerConnection" value="128"/>
+                <!--                <property name="socketSendBufferSize" value=""/> &lt;!&ndash; 16 kB &ndash;&gt;-->
+                <!--                <property name="socketReceiveBufferSize" value=""/> &lt;!&ndash; 4 kB &ndash;&gt;-->
+                <property name="tcpNoDelay" value="false"/>
+            </bean>
+        </property>
+
+        <!-- Enabling Apache Ignite Persistent Store. -->
+        <property name="dataStorageConfiguration">
+            <bean class="org.apache.ignite.configuration.DataStorageConfiguration">
+                <property name="systemRegionInitialSize" value="#{100L * 1024 * 1024}"/>
+                <property name="writeThrottlingEnabled" value="true"/>
+                <property name="concurrencyLevel" value="8"/>
+
+                <property name="defaultDataRegionConfiguration">
+                    <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+                        <property name="name" value="default"/>
+                        <property name="initialSize" value="#{12L * 1024 * 1024 * 1024}"/>
+                        <property name="maxSize" value="#{64L * 1024 * 1024 * 1024}"/>
+                        <property name="swapPath" value="/local/ignite-swap/"/>
+                    </bean>
+                </property>
+
+                <property name="dataRegionConfigurations">
+                    <list>
+                        <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+                            <property name="name" value="rule_engine_data_region"/>
+                            <property name="initialSize" value="#{12L * 1024 * 1024 * 1024}"/>
+                            <property name="maxSize" value="#{64L * 1024 * 1024 * 1024}"/>
+                            <property name="swapPath" value="/local/ignite-swap/"/>
+                        </bean>
+                    </list>
+                </property>
+
+            </bean>
+        </property>
+
+        <property name="cacheConfiguration">
+            <list>
+                <!-- Cache that is mapped to a specific data region. -->
+                <bean class="org.apache.ignite.configuration.CacheConfiguration">
+
+                    <property name="name" value="DefaultCache"/>
+                    <!--
+                    Assigning the cache to the `40MB_Region_Eviction` region.
+                    -->
+                    <property name="dataRegionName" value="default"/>
+                </bean>
+                <bean class="org.apache.ignite.configuration.CacheConfiguration">
+
+                    <property name="name" value="SampleCache"/>
+                    <!--
+                    Assigning the cache to the `40MB_Region_Eviction` region.
+                    -->
+                    <property name="dataRegionName" value="rule_engine_data_region"/>
+                </bean>
+            </list>
+        </property>
+
+        <!-- Explicitly configure TCP discovery SPI to provide list of initial nodes. -->
+        <property name="discoverySpi">
+            <bean class="org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi">
+                <property name="ackTimeout" value="10000"/>
+                <property name="maxAckTimeout" value="20000"/>
+                <property name="socketTimeout" value="20000"/>
+            </bean>
+        </property>
+    </bean>
+</beans>
